@@ -6,7 +6,7 @@ import time
 import numpy as np
 
 # Initialize the YOLO model
-model = YOLO('/home/sonlt373/Desktop/SoNg/Tracking/240124_yolov8s_package_640.pt')
+model = YOLO('./pretrained/240124_yolov8s_package_640.pt')
 
 # Define a function to process video frames
 def process_video(video_path, result_queue, thread_name, homo_matrix):
@@ -44,8 +44,7 @@ def process_video(video_path, result_queue, thread_name, homo_matrix):
     cap.release()
     result_queue.put((thread_name, None, None))
 
-# Function to process results in the main thread
-def process_results(result_queue):
+def post_process(result_queue):
     while True:
         try:
             image_bgr = np.ones((300, 4315, 3), dtype=np.uint8) * 128
@@ -62,21 +61,17 @@ def process_results(result_queue):
                 else:
                     cv2.circle(image_bgr, point_center, 50, (0, 165, 255), -1)
             
-            cv2.imwrite("check.jpg", image_bgr)
+            cv2.imwrite("output.jpg", image_bgr)
             cv2.imwrite(thread_name + ".jpg", frame)
-
-
 
         except Queue.Empty:
             continue
 
 if __name__ == "__main__":
-    # Create a queue to communicate results between threads
     result_queue = Queue()
 
-    # Define the video paths
-    video_paths = ["/home/sonlt373/Desktop/SoNg/Multi_cam_tracking/dev/multicam_tracking/sample_data/x5sonnt.mp4", 
-                   "/home/sonlt373/Desktop/SoNg/Multi_cam_tracking/dev/multicam_tracking/sample_data/x6sonnt.mp4"
+    video_paths = ["./sample_data/x5sonnt.mp4", 
+                   "./sample_data/x6sonnt.mp4"
                    ]
 
     # Create and start the threads
@@ -93,10 +88,8 @@ if __name__ == "__main__":
         threads.append(thread)
 
     # Process results in the main thread
-    process_results(result_queue)
+    post_process(result_queue)
 
     # Wait for all threads to finish
     for thread in threads:
         thread.join()
-
-    cv2.destroyAllWindows()
