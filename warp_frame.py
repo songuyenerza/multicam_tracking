@@ -1,9 +1,12 @@
 import cv2
 import numpy as np
+import os
 
+
+folder_frame = "/home/sonlt373/Desktop/SoNg/Multi_cam_tracking/dev/multicam_tracking/sample_data/frame_video_1"
 # Define the path for the image and the points
-img_path = "/Users/sonnguyen/Desktop/AI/GHTK/multicam_tracking/sample_data/frame_video_2/frame2.jpg"
-point_path = "/Users/sonnguyen/Desktop/AI/GHTK/multicam_tracking/sample_data/frame_video_2/point2.txt"
+img_path = os.path.join(folder_frame, "frame.jpg")
+point_path = os.path.join(folder_frame, "point.txt")
 
 # Read the image
 image = cv2.imread(img_path)
@@ -33,28 +36,45 @@ width = max(
     np.linalg.norm(denormalized_points[1] - denormalized_points[2])
 )
 
-# Convert to numpy array
+width = int(width / (height /300))
+height = 300
+print("width: ", width, " height: ", height)
 
 # Define the destination points for the warp (e.g., rectangle)
 dst_points = np.array([
-    [width - 1, height - 1],  # Bottom right
-    [width - 1, 0],           # Top right
-    [0, 0],                   # Top left
-    [0, height - 1]           # Bottom left
+    [width + 2146, height],  # Bottom right
+    [width + 2146, 0],           # Top right
+    [2146, 0],                   # Top left
+    [2146, height]           # Bottom left
 ], dtype=np.float32)
 
+# dst_points = np.array([
+#     [width, height],  # Bottom right
+#     [width, 0],           # Top right
+#     [0, 0],                   # Top left
+#     [0, height]           # Bottom left
+# ], dtype=np.float32)
+print("denormalized_points: ", denormalized_points)
+
+H, _ = cv2.findHomography(denormalized_points, dst_points)
 # Calculate the perspective transform matrix
 matrix = cv2.getPerspectiveTransform(denormalized_points, dst_points)
 print("matrix: ", matrix)
+print("matrix: ", H)
 
-# exit()
+matrix_array = np.array(H)
+
+# Lưu ma trận vào tệp tin văn bản
+np.savetxt(os.path.join(folder_frame,'matrix_homo.txt'), matrix_array)
 
 # Warp the image
-warped_image = cv2.warpPerspective(image, matrix, ((int(width), int(height))))
+warped_image = cv2.warpPerspective(image, H, ((int(width + 2169), int(height))))
+cv2.line(warped_image, (2146, 0), (2146, 300), (0, 0, 255), thickness=2)
+
 
 # # Save and show the warped image
-output_path = "/Users/sonnguyen/Desktop/AI/GHTK/multicam_tracking/sample_data/frame_video_2/warped_frame2.jpg"
+output_path = os.path.join(folder_frame, "warped_frame.jpg")
 cv2.imwrite(output_path, warped_image)
-# cv2.imshow("Warped Image", warped_image)
-# cv2.waitKey(0)
-# cv2.destroyAllWindows()
+cv2.imshow("Warped Image", warped_image)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
