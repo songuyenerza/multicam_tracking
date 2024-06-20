@@ -10,7 +10,7 @@ import sys
 sys.path.append('./gvision')
 from gvision.tracker.byte_tracker import BYTETracker
 
-H = 500
+H = 700
 W  = 4408
 
 with open('./sample_data/roi_fullview.txt', 'r') as file:
@@ -18,12 +18,16 @@ with open('./sample_data/roi_fullview.txt', 'r') as file:
     roi_data = [float(x) for x in roi_data]
 
 # Convert ROI data into pairs
-roi_pairs = [(roi_data[i] * W, roi_data[i + 1] * 700) for i in range(0, len(roi_data), 2)]
+roi_pairs = [(roi_data[i] * W, roi_data[i + 1] * H) for i in range(0, len(roi_data), 2)]
 roi_pairs = [(int(x), int(y)) for x, y in roi_pairs]
 print("roi_pairs: ", roi_pairs)
-
 # Initialize the YOLO model
 model = YOLO('./pretrained/240124_yolov8s_package_640.pt')
+
+# save video output
+OUTPUT_VIDEO = "video_output_1.mp4"
+FPS = 15
+
 # init tracker
 track_thresh  = 0.5
 track_buffer = 30
@@ -52,11 +56,13 @@ def is_point_in_polygon(point, polygon):
 def process_video(video_path, result_queue, thread_name, homo_matrix):
     cap = cv2.VideoCapture(video_path)
     frame_count = 0
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    print("FPS: ", fps)
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break
-        if thread_name == "Thread_1" and frame_count < 14:
+        if thread_name == "Thread_1" and frame_count < 0:
             frame_count += 1
             continue
         predictions = model.predict(source = frame,
@@ -149,6 +155,19 @@ def match_points_across_frames(dict_points_all_frame, threshold=100):
     return matched_points
 
 def post_process(result_queues):
+    # save video output
+
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    video_save = cv2.VideoWriter(OUTPUT_VIDEO, fourcc, FPS, (3840, 2298)) 
+
+    blink_interval_1 = 0.5  # Blinking interval in seconds
+    blink_state_1 = True  # Initial state of the blinking light
+    last_blink_time_1 = time.time()
+
+    blink_interval_2 = 0.5  # Blinking interval in seconds
+    blink_state_2 = True  # Initial state of the blinking light
+    last_blink_time_2 = time.time()
+
     while True:
         try:
             image_bgr = np.ones((H, W, 3), dtype=np.uint8) * 128
@@ -166,26 +185,17 @@ def post_process(result_queues):
                     dict_points_all_frame[thread_name] = results
                 if thread_name == "Thread_1":
                     homo_matrix = np.loadtxt('./sample_data/frame_video_1/matrix_homo.txt')
-                    warped_image1 = cv2.warpPerspective(frame, homo_matrix, (W, 700))
+                    warped_image1 = cv2.warpPerspective(frame, homo_matrix, (W, H))
                     frame1 = frame
-                else:
+                elif thread_name == "Thread_2":
                     homo_matrix = np.loadtxt('./sample_data/frame_video_2/matrix_homo.txt')
-                    warped_image2 = cv2.warpPerspective(frame, homo_matrix, (W, 700))
+                    warped_image2 = cv2.warpPerspective(frame, homo_matrix, (W, H))
                     frame2 = frame
 
-            combined_top_frame = np.hstack((frame2, frame1))
-            combined_width = combined_top_frame.shape[1]
-            combined_width = combined_top_frame.shape[1]
+            overview_image = np.ones((H, W, 3), dtype=np.uint8)* 150
 
-            overview_image = np.ones((700, W, 3), dtype=np.uint8)* 150
-            overview_image_BGR = np.ones((700, W, 3), dtype=np.uint8)* 150
-
-            cv2.line(overview_image_BGR, (0, 200), (W, 200), (60, 86, 26), 15)
-            cv2.line(overview_image_BGR, (0, 500), (W, 500), (60, 86, 26), 15)
-
-            overview_image_BGR = cv2.resize(overview_image_BGR, (combined_width, int(overview_image_BGR.shape[0] * (combined_width / overview_image_BGR.shape[1]))))
-            cv2.rectangle(overview_image_BGR, (1900, 0), (2400, 700), (150, 150, 150), -1)
-            cv2.rectangle(overview_image_BGR, (50, 0), (500, 200), (150, 150, 150), -1)
+            overview_image_BGR = cv2.imread("./sample_data/full_view.jpg")
+            overview_image_BGR = cv2.resize(overview_image_BGR, (W, H))
 
             overview_image[:, :2146] = warped_image2[:, :2146]
             overview_image[:, 2146:] = warped_image1[:, 2146:]
@@ -197,9 +207,9 @@ def post_process(result_queues):
             for match in matched_points:
                 if len(match) == 2:
                     p1, p2 = match
-                    cv2.circle(overview_image, p1, 20, (255, 0, 0), -1)
-                    cv2.circle(overview_image, p2, 20, (255, 0, 0), -1)
-                    cv2.line(overview_image, p1, p2, (0, 127, 255), 30)
+                    cv2.circle(overview_image, p1, 10, (255, 0, 0), -1)
+                    cv2.circle(overview_image, p2, 10, (255, 0, 0), -1)
+                    cv2.line(overview_image, p1, p2, (255, 255, 255), 10)
                     
                     box_xyxy = [int((p1[0] + p2[0]) * 0.5 - size_box/2),
                                   int((p1[1] + p2[1]) * 0.5 - size_box/2),
@@ -220,37 +230,56 @@ def post_process(result_queues):
                 bboxes = output.tlwh
                 id = output.track_id
                 bboxes = [bboxes[0], bboxes[1] , bboxes[0] + bboxes[2], bboxes[1] + bboxes[3], id]
-                overview_image = cv2.putText(overview_image, f'PKG:{str(id)}', (int(bboxes[0]), int(bboxes[1] - 10)), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 4 , cv2.LINE_AA)
+                overview_image = cv2.putText(overview_image, f'Pkg:{str(id)}', (int(bboxes[0]), int(bboxes[1] - 10)), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 4 , cv2.LINE_AA)
                 overview_image = cv2.rectangle(overview_image, (int(bboxes[0]), int(bboxes[1])), (int(bboxes[2]), int(bboxes[3])), (0, 0, 255), 3 )
 
-                overview_image_BGR = cv2.putText(overview_image_BGR, f'PKG:{str(id)}', (int(bboxes[0]), int(bboxes[1] - 10)), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 4 , cv2.LINE_AA)
+                overview_image_BGR = cv2.putText(overview_image_BGR, f'Pkg:{str(id)}', (int(bboxes[0]), int(bboxes[1] - 10)), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 4 , cv2.LINE_AA)
                 overview_image_BGR = cv2.rectangle(overview_image_BGR, (int(bboxes[0]), int(bboxes[1])), (int(bboxes[2]), int(bboxes[3])), (0, 0, 255), 3 )
-                
+
+                # blink led
+                if 2800 < bboxes[0] < 3200:
+                    current_time = time.time()
+                    if current_time - last_blink_time_1 > blink_interval_1:
+                        blink_state_1 = not blink_state_1
+                        last_blink_time_1 = current_time
+                    if blink_state_1:
+                        cv2.circle(overview_image_BGR, (2900, 100), 40, (0, 255, 255), -1)
+
+                if 700 < bboxes[0] < 1100:
+                    current_time = time.time()
+                    if current_time - last_blink_time_2 > blink_interval_2:
+                        blink_state_2 = not blink_state_2
+                        last_blink_time_2 = current_time
+                    if blink_state_2:
+                        cv2.circle(overview_image_BGR, (700, 100), 40, (0, 255, 255), -1)
 
             # draw to visualize
-
-           
-            
             # Draw bounding boxes around frame1 and frame2
-            cv2.rectangle(frame1, (0, 0), (frame1.shape[1], frame1.shape[0]), (255, 255, 255), 10)
-            cv2.rectangle(frame2, (0, 0), (frame2.shape[1], frame2.shape[0]), (255, 255, 255), 10)
+            cv2.rectangle(frame1, (0, 0), (frame1.shape[1], frame1.shape[0]), (255, 255, 255), 30)
+            cv2.rectangle(frame2, (0, 0), (frame2.shape[1], frame2.shape[0]), (255, 255, 255), 30)
             cv2.rectangle(overview_image, (0, 0), (overview_image.shape[1], overview_image.shape[0]), (255, 255, 255), 10)
             cv2.rectangle(overview_image_BGR, (0, 0), (overview_image_BGR.shape[1], overview_image_BGR.shape[0]), (255, 255, 255), 10)
 
+            combined_top_frame = np.hstack((frame2, frame1))
+            combined_width = combined_top_frame.shape[1]
+            overview_image_BGR = cv2.resize(overview_image_BGR, (combined_width, int(overview_image.shape[0] * (combined_width / overview_image.shape[1]))))
             overview_image = cv2.resize(overview_image, (combined_width, int(overview_image.shape[0] * (combined_width / overview_image.shape[1]))))
+
             final_view = np.vstack((combined_top_frame, overview_image))
             final_view = np.vstack((final_view, overview_image_BGR))
-            
-            cv2.imwrite("output.jpg", final_view)
+            # cv2.imwrite("output.jpg", final_view)
+            video_save.write(final_view)
             #   /////////////////
         except Queue.Empty:
             continue
+    out.release()
+    print("====== SUCCESS =====")
 
 if __name__ == "__main__":
 
     result_queues = []
-    video_paths = ["./sample_data/x5sonnt.mp4", 
-                   "./sample_data/x6sonnt.mp4"
+    video_paths = ["./sample_data/x5.mp4", 
+                   "./sample_data/x6.mp4"
                    ]
 
     # Create and start the threads
