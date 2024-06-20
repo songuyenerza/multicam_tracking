@@ -1,0 +1,6 @@
+scipy
+lap
+cython_bbox
+seaborn
+numpy==1.23.5 
+ultralytics==8.0.230

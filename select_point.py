@@ -1,6 +1,6 @@
 import cv2
 
-img_path = '/home/sonlt373/Desktop/SoNg/Multi_cam_tracking/dev/multicam_tracking/sample_data/frame_video_2/frame.jpg'
+img_path = '/home/sonlt373/Desktop/SoNg/Multi_cam_tracking/dev/multicam_tracking/output.jpg'
 image = cv2.imread(img_path)
 print("image: ", image.shape)
 W = image.shape[1]
