@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.optimize import linear_sum_assignment
+from gvision.constants import *
 
 
 def is_point_in_polygon(point, polygon):
@@ -59,3 +60,73 @@ def match_points_across_frames(dict_points_all_frame, threshold=100):
         matched_points.extend([(point,) for point in unmatched_points])
     # print("matched_points: ", matched_points)
     return matched_points
+
+
+def Read_roi_file(roi_path, W, H):
+    with open(roi_path, 'r') as file:
+        roi_data = file.readline().strip().split(';')
+        roi_data = [float(x) for x in roi_data]
+
+        # Convert ROI data into pairs
+        roi_pairs = [(roi_data[i] * W, roi_data[i + 1] * H) for i in range(0, len(roi_data), 2)]
+        roi_pairs = [(int(x), int(y)) for x, y in roi_pairs]
+    return roi_pairs
+
+
+def Warp_box_to_overview(dict_bboxes_homo_all_frame, roi_pairs):
+    # warp base on homography matrix
+    dict_result = {}
+    for name_stream in dict_bboxes_homo_all_frame.keys():
+        box_xyxys = dict_bboxes_homo_all_frame[name_stream]["bbox"]
+        homo_matrix = dict_bboxes_homo_all_frame[name_stream]["homo_matrix"]
+
+        results = []
+        for box_xyxy in box_xyxys:
+
+            # Extract the coordinates of the bounding box corners
+            x1, y1, x2, y2 = box_xyxy
+
+            # Transform the top-left corner (x1, y1)
+            top_left = np.dot(homo_matrix, np.array([x1, y1, 1]))
+            top_left = top_left / top_left[2]
+            transformed_top_left = top_left[:2]
+
+            # Transform the bottom-right corner (x2, y2)
+            bottom_right = np.dot(homo_matrix, np.array([x2, y2, 1]))
+            bottom_right = bottom_right / bottom_right[2]
+            transformed_bottom_right = bottom_right[:2]
+
+            # Calculate the center of the bounding box in the warped image
+            point_center_x = round((transformed_top_left[0] + transformed_bottom_right[0]) / 2, 2)
+            point_center_y = round((transformed_top_left[1] + transformed_bottom_right[1]) / 2, 2)
+            point_center = (point_center_x, point_center_y)
+
+            if is_point_in_polygon(point_center, roi_pairs):
+                if name_stream == "Stream_1":
+                    if W1 + W2 + W3 + W4 + W5 + W6 <  point_center[0] <= WIDTH_IMAGE_OVERVIEW:
+                        results.append(point_center)
+                elif name_stream == "Stream_2":
+                    if W1 + W2 + W3 + W4 + W5 - 200 <  point_center[0] <= WIDTH_IMAGE_OVERVIEW - W7 + 100:
+                        results.append(point_center)
+                elif name_stream == "Stream_3":
+                    if W1 + W2 + W3 + W4 - 100 <  point_center[0] <= WIDTH_IMAGE_OVERVIEW - W7 - W6 + 150:
+                        results.append(point_center)
+
+                elif name_stream == "Stream_4":
+                    if W1 + W2 + W3 <  point_center[0] <= WIDTH_IMAGE_OVERVIEW - W7 - W6 - W5:
+                        results.append(point_center)
+                elif name_stream == "Stream_5":
+                    if W1 + W2  <  point_center[0] <= WIDTH_IMAGE_OVERVIEW - W7 - W6 - W5 - W4:
+                        results.append(point_center)
+                elif name_stream == "Stream_6":
+                    if W1 <  point_center[0] <= WIDTH_IMAGE_OVERVIEW - W7 - W6 - W5 - W4 - W3:
+                        results.append(point_center)
+                elif name_stream == "Stream_7":
+                    if 0 <  point_center[0] <= WIDTH_IMAGE_OVERVIEW - W7 - W6 - W5 - W4 - W3 - W2:
+                        results.append(point_center)
+
+        if len(results) > 0:
+            dict_result[name_stream] = results
+
+    return dict_result
+

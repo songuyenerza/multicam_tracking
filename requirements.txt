@@ -1,6 +1,7 @@
 scipy
-lap
+numpy==1.23.5 
 cython_bbox
 seaborn
-numpy==1.23.5 
-ultralytics==8.0.230
+ultralytics==8.0.251
+Pillow
+lap

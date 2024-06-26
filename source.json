@@ -1,0 +1,30 @@
+[
+    {
+        "video": "/data/datasets/thainq/sonnt373/dev/Multi_cam_tracking/data/DaiTu/x3.mp4",
+        "homography_matrix": "./data_wheel_daitu/stream_1/matrix_homo.txt"
+    },
+    {
+        "video": "/data/datasets/thainq/sonnt373/dev/Multi_cam_tracking/data/DaiTu/x4.mp4",
+        "homography_matrix": "./data_wheel_daitu/stream_2/matrix_homo.txt"
+    },
+    {
+        "video": "/data/datasets/thainq/sonnt373/dev/Multi_cam_tracking/data/DaiTu/x5.mp4",
+        "homography_matrix": "./data_wheel_daitu/stream_3/matrix_homo.txt"
+    },
+    {
+        "video": "/data/datasets/thainq/sonnt373/dev/Multi_cam_tracking/data/DaiTu/x6.mp4",
+        "homography_matrix": "./data_wheel_daitu/stream_4/matrix_homo.txt"
+    },
+    {
+        "video": "/data/datasets/thainq/sonnt373/dev/Multi_cam_tracking/data/DaiTu/x7.mp4",
+        "homography_matrix": "./data_wheel_daitu/stream_5/matrix_homo.txt"
+    },
+    {
+        "video": "/data/datasets/thainq/sonnt373/dev/Multi_cam_tracking/data/DaiTu/x8.mp4",
+        "homography_matrix": "./data_wheel_daitu/stream_6/matrix_homo.txt"
+    },
+    {
+        "video": "/data/datasets/thainq/sonnt373/dev/Multi_cam_tracking/data/DaiTu/x9.mp4",
+        "homography_matrix": "./data_wheel_daitu/stream_7/matrix_homo.txt"
+    }
+]

@@ -1,8 +1,9 @@
 from ultralytics import YOLO
 from pathlib import Path
 import numpy as np
+import concurrent.futures
 
-class AttributeYoloInference:
+class AttributeObjDetection:
     def __init__(self, model_dir: Path,
                 image_size: int = 640,
                 conf: float = 0.3,
@@ -31,19 +32,20 @@ class AttributeYoloInference:
         else:
             self.device = 'cuda:{0}'.format(device)
 
-    def detect_bbox(self, img):
+    def detect_bbox(self, img_list):
         # Make predictions
         predictions = self.model.predict(
             imgsz= self.image_size,
-            source=img,
+            source=img_list,
             conf= self.conf,
             iou = self.iou,
             device = self.device,
-            verbose=False
+            verbose=False,
+            stream = True
         )
         result_detection = []
-        for i, box in enumerate(predictions[0].boxes):
-            [x1, y1, x2, y2] = [int(num) for num in box.xyxy[0]]
-            result_detection.append([x1, y1, x2, y2])
-        
+
+        for pred_item in predictions:
+            result_detection.append([[int(num) for num in box.xyxy[0]] for box in pred_item.to("cpu").numpy().boxes])
+
         return result_detection
